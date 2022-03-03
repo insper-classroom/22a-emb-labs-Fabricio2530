@@ -184,10 +184,8 @@ const uint32_t ul_mask) {
 }
 
 void _delay_ms(int ms) {
-	if (ms > 0) {
-		cpu_delay_ms(ms, F_CPU);
-	} else {
-		cpu_delay_us(1, F_CPU);
+	for (int i = 0; i < (300000/2)*ms; i++){
+		asm("NOP");
 	}
 }
 
