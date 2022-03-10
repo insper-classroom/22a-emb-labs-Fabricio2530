@@ -63,12 +63,18 @@ void but3_callback(void) {
 }
 
 void pisca_led(int n, int t){
+	
 	gfx_mono_generic_draw_filled_rect(60, 14, 50, 10, GFX_PIXEL_CLR);
 	gfx_mono_generic_draw_rect(60, 14, 50, 10, GFX_PIXEL_SET);
+	
 	int width = 50;
 	int inc = width/n;
+	
 	for (int i=0;i<=n;i++){
-		if (but_2_flag!=1) {
+		
+		if (but_2_flag==1) {
+			break;
+		} else {
 			gfx_mono_generic_draw_filled_rect(60, 14, inc*i, 9, GFX_PIXEL_SET);
 			pio_clear(LED_PIO, LED_IDX_MASK);
 			delay_ms(t);
@@ -80,13 +86,13 @@ void pisca_led(int n, int t){
 }
 
 void limpa_visor(int frequencia) {
-	sprintf(str, "%d", frequencia);
+	sprintf(str, "%d ms", frequencia);
 	gfx_mono_generic_draw_filled_rect(60, 14, 50, 10, GFX_PIXEL_CLR);
 	gfx_mono_generic_draw_rect(60, 14, 50, 10, GFX_PIXEL_SET);
 }
 
 void atualiza_display(int frequencia) {
-	sprintf(str, "%d", frequencia);
+	sprintf(str, "%d ms", frequencia);
 	gfx_mono_draw_string(str, 0, 14, &sysfont);
 }
 
@@ -164,7 +170,7 @@ int main (void)
   
 	// Escreve na tela um circulo e um texto
 	io_init();
-	sprintf(str, "%d", frequencia);
+	sprintf(str, "%d ms", frequencia);
 
 	/* Insert application code here, after the board has been initialized. */
 	while(1) {
@@ -193,10 +199,7 @@ int main (void)
 				pisca_led(5, frequencia);
 				but_subida_flag = 0;
 				atualiza_display(frequencia);
-			} else {
-				
 			}
-			
 			if (but3_flag) {
 				frequencia -= 100;
 				atualiza_display(frequencia);
