@@ -182,14 +182,14 @@ int main (void)
 				while(but_descida_flag) {
 					cont++; 
 					if (cont > 150000000) {
-						frequencia -= 100;
+						frequencia += 100;
 						atualiza_display(frequencia);
 						delay_ms(100);
 					}
 				}
 				
 				if (cont <=  150000000) {
-					frequencia += 100;
+					frequencia -= 100;
 					atualiza_display(frequencia);
 					delay_ms(100);
 				}
@@ -201,7 +201,7 @@ int main (void)
 				atualiza_display(frequencia);
 			}
 			if (but3_flag) {
-				frequencia -= 100;
+				frequencia += 100;
 				atualiza_display(frequencia);
 				delay_ms(100);
 				//limpa_visor(frequencia);
