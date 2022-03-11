@@ -2692,7 +2692,7 @@ int main (void)
 					cont++; 
 					if (cont > 150000000) {
   401836:	4e35      	ldr	r6, [pc, #212]	; (40190c <main+0xfc>)
-						frequencia -= 100;
+						frequencia += 100;
 						atualiza_display(frequencia);
 						delay_ms(100);
   401838:	4f35      	ldr	r7, [pc, #212]	; (401910 <main+0x100>)
@@ -2718,10 +2718,10 @@ int main (void)
 					if (cont > 150000000) {
   401850:	42b4      	cmp	r4, r6
   401852:	ddf9      	ble.n	401848 <main+0x38>
-						frequencia -= 100;
+						frequencia += 100;
   401854:	4b29      	ldr	r3, [pc, #164]	; (4018fc <main+0xec>)
   401856:	6818      	ldr	r0, [r3, #0]
-  401858:	3864      	subs	r0, #100	; 0x64
+  401858:	3064      	adds	r0, #100	; 0x64
   40185a:	6018      	str	r0, [r3, #0]
 						atualiza_display(frequencia);
   40185c:	4b2e      	ldr	r3, [pc, #184]	; (401918 <main+0x108>)
@@ -2731,10 +2731,10 @@ int main (void)
   401862:	4b2e      	ldr	r3, [pc, #184]	; (40191c <main+0x10c>)
   401864:	4798      	blx	r3
   401866:	e7ef      	b.n	401848 <main+0x38>
-					frequencia += 100;
+					frequencia -= 100;
   401868:	4b24      	ldr	r3, [pc, #144]	; (4018fc <main+0xec>)
   40186a:	6818      	ldr	r0, [r3, #0]
-  40186c:	3064      	adds	r0, #100	; 0x64
+  40186c:	3864      	subs	r0, #100	; 0x64
   40186e:	6018      	str	r0, [r3, #0]
 					atualiza_display(frequencia);
   401870:	4b29      	ldr	r3, [pc, #164]	; (401918 <main+0x108>)
@@ -2807,10 +2807,10 @@ int main (void)
   4018cc:	4b12      	ldr	r3, [pc, #72]	; (401918 <main+0x108>)
   4018ce:	4798      	blx	r3
   4018d0:	e7d7      	b.n	401882 <main+0x72>
-				frequencia -= 100;
+				frequencia += 100;
   4018d2:	4b0a      	ldr	r3, [pc, #40]	; (4018fc <main+0xec>)
   4018d4:	6818      	ldr	r0, [r3, #0]
-  4018d6:	3864      	subs	r0, #100	; 0x64
+  4018d6:	3064      	adds	r0, #100	; 0x64
   4018d8:	6018      	str	r0, [r3, #0]
 				atualiza_display(frequencia);
   4018da:	4b0f      	ldr	r3, [pc, #60]	; (401918 <main+0x108>)
