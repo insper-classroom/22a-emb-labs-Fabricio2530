@@ -31,7 +31,9 @@
 
 //Variaveis globais
 volatile char flag_tc = 0;
+volatile char flag_tc_display = 0;
 volatile char flag_rtc_alarm = 0;
+char str[300];
 
 typedef struct  {
 	uint32_t year;
@@ -176,6 +178,17 @@ void TC1_Handler(void) {
 	pin_toggle(LED_PI1, LED_PI1_IDX_MASK);  
 }
 
+void TC3_Handler(void) {
+	/**
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+	* Isso é realizado pela leitura do status do periférico
+	**/
+	volatile uint32_t status = tc_get_status(TC1, 0);
+
+	/** Muda o estado do LED (pisca) **/
+	flag_tc_display = 1;
+}
+
 void RTT_Handler(void) {
 	uint32_t ul_status;
 
@@ -214,8 +227,14 @@ void init(void) {
 	pio_set_input(BUT_PI1,BUT_PI1_IDX_MASK,PIO_DEFAULT);
 	pio_pull_up(BUT_PI1,BUT_PI1_IDX_MASK,1);
 	
+	//CONTAGEM PARA O LED1 PISCAR
 	TC_init(TC0, ID_TC1, 1, 4);
 	tc_start(TC0, 1);
+	
+	//CONTAGEM PARA ATUALIZAÇÃO DO DISPLAY
+	TC_init(TC1, ID_TC3, 0, 1);
+	tc_start(TC1, 0);
+	
 	
 	RTT_init(0.25, 0, RTT_MR_RTTINCIEN); 
 }
@@ -229,12 +248,6 @@ int main (void)
 
   // Init OLED
 	gfx_mono_ssd1306_init();
-	
-	gfx_mono_draw_filled_circle(20, 16, 16, GFX_PIXEL_SET, GFX_WHOLE);
-	gfx_mono_draw_string("mundo", 50,16, &sysfont);
-  
-  
-
   /* Insert application code here, after the board has been initialized. */
 	while(1) {
 			
@@ -256,6 +269,21 @@ int main (void)
 				pisca_led(5, 200);
 				flag_rtc_alarm = 0;
 				
+			}
+			
+			if (flag_tc_display){
+				
+				rtc_get_time(RTC, &current_hour, &current_min, &current_sec);
+				rtc_get_date(RTC, &current_year, &current_month, &current_day, &current_week);
+				
+				if (current_sec < 10) {
+					sprintf(str, "%d:%d:0%d", current_hour, current_min, current_sec);	
+				} else {
+					sprintf(str, "%d:%d:%d", current_hour, current_min, current_sec);
+				}
+				
+				gfx_mono_draw_string(str, 50,16, &sysfont);
+				flag_tc_display = 0;
 			}
 			
 			pmc_sleep(SAM_PM_SMODE_SLEEP_WFI);
