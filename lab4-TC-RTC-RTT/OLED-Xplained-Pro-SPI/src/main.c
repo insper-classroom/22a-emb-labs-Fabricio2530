@@ -34,6 +34,7 @@ volatile char flag_tc = 0;
 volatile char flag_tc_display = 0;
 volatile char flag_rtc_alarm = 0;
 char str[300];
+volatile int tc_cont = 0;
 
 typedef struct  {
 	uint32_t year;
@@ -189,6 +190,18 @@ void TC3_Handler(void) {
 	flag_tc_display = 1;
 }
 
+void TC6_Handler(void) {
+	/**
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+	* Isso é realizado pela leitura do status do periférico
+	**/
+	volatile uint32_t status = tc_get_status(TC2, 0);
+
+	/** Muda o estado do LED (pisca) **/
+	tc_cont+=1;
+	
+}
+
 void RTT_Handler(void) {
 	uint32_t ul_status;
 
@@ -252,19 +265,16 @@ int main (void)
 	while(1) {
 			
 			if (!pio_get(BUT_PI1,PIO_INPUT, BUT_PI1_IDX_MASK)) {
-					
-					rtc_get_time(RTC, &current_hour, &current_min, &current_sec);
-					rtc_get_date(RTC, &current_year, &current_month, &current_day, &current_week);
-					calendar rtc_initial = {current_year, current_month, current_day, current_week, current_hour, current_min ,current_sec};
-					RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_ALREN); 
-						
-					set_RTC_alarm_sec(rtc_initial, 4);
-					pio_set(LED_PI3, LED_PI3_IDX_MASK);      // Coloca 1 no pino LED
-					delay_ms(500);                       // Delay por software de 200 ms
-					pio_clear(LED_PI3, LED_PI3_IDX_MASK);    // Coloca 0 no pino do LED
-					delay_ms(500);                       // Delay por software de 200 ms
+					TC_init(TC2, ID_TC6, 0, 1);
+					tc_start(TC2, 0);
 				}
 				
+			if (tc_cont > 4) {
+				pin_toggle(LED_PI3, LED_PI3_IDX_MASK);
+				tc_stop(TC2, 0);
+				tc_cont = 0;
+			} 
+			
 			if(flag_rtc_alarm){
 				pisca_led(5, 200);
 				flag_rtc_alarm = 0;
