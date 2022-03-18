@@ -269,7 +269,7 @@ int main (void)
 					tc_start(TC2, 0);
 				}
 				
-			if (tc_cont > 4) {
+			if (tc_cont > 20) {
 				
 				pio_clear(LED_PI3, LED_PI3_IDX_MASK);    // Coloca 0 no pino do LED
 				delay_ms(1000);
