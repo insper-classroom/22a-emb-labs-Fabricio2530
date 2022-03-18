@@ -270,7 +270,12 @@ int main (void)
 				}
 				
 			if (tc_cont > 4) {
-				pin_toggle(LED_PI3, LED_PI3_IDX_MASK);
+				
+				pio_clear(LED_PI3, LED_PI3_IDX_MASK);    // Coloca 0 no pino do LED
+				delay_ms(1000);
+				pio_set(LED_PI3, LED_PI3_IDX_MASK);      // Coloca 1 no pino LED
+				delay_ms(1000);                       // Delay por software de 200 ms
+				
 				tc_stop(TC2, 0);
 				tc_cont = 0;
 			} 
