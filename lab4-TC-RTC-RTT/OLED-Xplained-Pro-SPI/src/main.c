@@ -232,7 +232,7 @@ void init(void) {
 	
 	pmc_enable_periph_clk(LED_PI3_ID);
 	//Inicializa LED3 como saída
-	pio_set_output(LED_PI3, LED_PI3_IDX_MASK, 0, 0, 0);
+	pio_set_output(LED_PI3, LED_PI3_IDX_MASK, 1, 0, 0);
 	
 	// Inicializa PIO do BOTAO 1
 	pmc_enable_periph_clk(BUT_PI1_ID);

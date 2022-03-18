@@ -7949,7 +7949,7 @@ OUTPUT(OLED1.elf elf32-littlearm)
  .comment       0x00000059       0x5a src/ASF/sam/utils/syscalls/gcc/syscalls.o
  .comment       0x00000059       0x5a src/main.o
 
-.debug_info     0x00000000    0x1b6a7
+.debug_info     0x00000000    0x1b6a6
  .debug_info    0x00000000     0x10f7 src/ASF/sam/drivers/rtc/rtc.o
  .debug_info    0x000010f7      0xcd1 src/ASF/sam/drivers/rtt/rtt.o
  .debug_info    0x00001dc8     0x115d src/ASF/sam/drivers/spi/spi.o
@@ -7971,7 +7971,7 @@ OUTPUT(OLED1.elf elf32-littlearm)
  .debug_info    0x000164c3     0x156a src/ASF/sam/utils/cmsis/same70/source/templates/gcc/startup_same70.o
  .debug_info    0x00017a2d      0x55b src/ASF/sam/utils/cmsis/same70/source/templates/system_same70.o
  .debug_info    0x00017f88      0xdb0 src/ASF/sam/utils/syscalls/gcc/syscalls.o
- .debug_info    0x00018d38     0x296f src/main.o
+ .debug_info    0x00018d38     0x296e src/main.o
 
 .debug_abbrev   0x00000000     0x3e3a
  .debug_abbrev  0x00000000      0x2e3 src/ASF/sam/drivers/rtc/rtc.o
