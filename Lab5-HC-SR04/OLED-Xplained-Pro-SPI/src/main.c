@@ -1,20 +1,10 @@
 #include <asf.h>
 
+#include "PIO_OLED.h"
+
 #include "gfx_mono_ug_2832hsweg04.h"
 #include "gfx_mono_text.h"
 #include "sysfont.h"
-
-//LED 2
-#define LED_PI2			  PIOC
-#define LED_PI2_ID		  ID_PIOC
-#define LED_PI2_IDX		  30
-#define LED_PI2_IDX_MASK  (1 << LED_PI2_IDX)   // Mascara para CONTROLARMOS o LED
-
-// Configuracoes do BOTAO 1
-#define BUT_PI1			  PIOD
-#define BUT_PI1_ID        ID_PIOD
-#define BUT_PI1_IDX	      28
-#define BUT_PI1_IDX_MASK (1u << BUT_PI1_IDX) 
 
 //PINO ECHO
 #define ECHO_PI				PIOA
@@ -31,7 +21,10 @@
 //Variaveis globais
 volatile char subida = 0;
 volatile char descida = 0;
-volatile char tempo = 0;
+volatile double tempo = 0;
+volatile double tempo_rtt = 0;
+volatile double dist = 0;
+char str[300];
 
 
 void echo_callback(void){
@@ -83,33 +76,28 @@ void RTT_Handler(void) {
 	/* IRQ due to Time has changed */
 	if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC) {
 		//pin_toggle(LED_PI2, LED_PI2_IDX_MASK);    // BLINK Led
-		tempo+=1;
+		tempo_rtt+=1;
 	}
+}
+
+void pin_toggle(Pio *pio, uint32_t mask) {
+	if(pio_get_output_data_status(pio, mask))
+	pio_clear(pio, mask);
+	else
+	pio_set(pio,mask);
 }
 
 void init(void) {
 	//Initialize the board clock
 	sysclk_init();
+	oled_init();
 	
 	// Desativa WatchDog Timer
 	WDT->WDT_MR = WDT_MR_WDDIS;
 	
-	pmc_enable_periph_clk(LED_PI2_ID);
-	//Inicializa LED2 como saída
-	pio_set_output(LED_PI2, LED_PI2_IDX_MASK, 0, 0, 0);
-	
-	// Inicializa PIO do BOTAO 1
-	pmc_enable_periph_clk(BUT_PI1_ID);
-	
-	// configura pino ligado ao botão como entrada com um pull-up.
-	pio_set_input(BUT_PI1,BUT_PI1_IDX_MASK,PIO_DEFAULT);
-	pio_pull_up(BUT_PI1,BUT_PI1_IDX_MASK,1);
-	pio_configure(BUT_PI1, PIO_INPUT, BUT_PI1_IDX_MASK, PIO_PULLUP | PIO_DEBOUNCE);
-	pio_set_debounce_filter(BUT_PI1, BUT_PI1_IDX_MASK, 60);
-	
 	//Definindo o ECHO PIO como input
 	pmc_enable_periph_clk(ECHO_PI_ID);
-	pio_configure(ECHO_PI, PIO_INPUT,ECHO_PI_IDX_MASK, PIO_DEFAULT);
+	pio_set_input(ECHO_PI,ECHO_PI_IDX_MASK,PIO_DEFAULT);
 	
 	//Definindo o ECHO PIO como output
 	pmc_enable_periph_clk(TRIG_PI_ID);
@@ -131,23 +119,49 @@ int main (void)
 
   // Init OLED
 	gfx_mono_ssd1306_init();
+	gfx_mono_draw_string("Aguardando", 0,16, &sysfont);
   /* Insert application code here, after the board has been initialized. */
 	while(1) {
 			
 			if (!pio_get(BUT_PI1,PIO_INPUT, BUT_PI1_IDX_MASK)) {
+					
 					pio_set(TRIG_PI,TRIG_PI_IDX_MASK);
 					delay_us(10);
 					pio_clear(TRIG_PI,TRIG_PI_IDX_MASK);
+					
+					pin_toggle(LED_PI1, LED_PI1_IDX_MASK);
+					delay_ms(300);
+					pin_toggle(LED_PI1, LED_PI1_IDX_MASK);
 				}
 			
 			if (subida) {
-				RTT_init(1, 0, RTT_MR_RTTINCIEN);
+				
+				RTT_init(1/(2*0.000058), 0, RTT_MR_RTTINCIEN);
+				
+				pin_toggle(LED_PI2, LED_PI2_IDX_MASK);
+				delay_ms(300);
+				pin_toggle(LED_PI2, LED_PI2_IDX_MASK);
+			
 			}
 			
 			if (descida) {	
-				rtt_read_timer_value(RTT);
+				tempo = rtt_read_timer_value(RTT);
+				
+				pin_toggle(LED_PI3, LED_PI3_IDX_MASK);
+				delay_ms(300);
+				pin_toggle(LED_PI3, LED_PI3_IDX_MASK);
 			}
-		
-			pmc_sleep(SAM_PM_SMODE_SLEEP_WFI);
+			
+			
+			if (tempo != 0) {
+				//regra de 3: se 2*0.000058s = 0.02m, t (segundos) = x (m)
+				
+				dist = (tempo*0.02)/(2*0.000058);
+				
+				sprintf(str, "%lf", dist);
+				
+				
+			}
+			
 	}
 }
