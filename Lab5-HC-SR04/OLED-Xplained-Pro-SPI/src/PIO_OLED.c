@@ -23,6 +23,18 @@
 #define BUT_PI1_IDX	      28
 #define BUT_PI1_IDX_MASK (1u << BUT_PI1_IDX)
 
+// Botão 2
+#define BUT_PI2			  PIOC
+#define BUT_PI2_ID        ID_PIOC
+#define BUT_PI2_IDX	      31
+#define BUT_PI2_IDX_MASK (1u << BUT_PI2_IDX) // esse já está pronto.
+
+// Botão 3
+#define BUT_PI3			  PIOA
+#define BUT_PI3_ID        ID_PIOA
+#define BUT_PI3_IDX	      19
+#define BUT_PI3_IDX_MASK (1u << BUT_PI3_IDX) // esse já está pronto.
+
 void oled_init(void) {
 	
 	pmc_enable_periph_clk(LED_PI1_ID);
@@ -44,4 +56,19 @@ void oled_init(void) {
 	pio_pull_up(BUT_PI1,BUT_PI1_IDX_MASK,1);
 	pio_set_debounce_filter(BUT_PI1, BUT_PI1_IDX_MASK, 60);
 	
+	// Inicializa PIO do BOTAO 2
+	pmc_enable_periph_clk(BUT_PI2_ID);
+	// configura pino ligado ao botão como entrada com um pull-up.
+	pio_set_input(BUT_PI2,BUT_PI2_IDX_MASK,PIO_DEFAULT);
+	pio_pull_up(BUT_PI2,BUT_PI2_IDX_MASK,1);
+	pio_set_debounce_filter(BUT_PI2, BUT_PI2_IDX_MASK, 60);
+	
+	// Inicializa PIO do BOTAO 2
+	pmc_enable_periph_clk(BUT_PI3_ID);
+	// configura pino ligado ao botão como entrada com um pull-up.
+	pio_set_input(BUT_PI3,BUT_PI3_IDX_MASK,PIO_DEFAULT);
+	pio_pull_up(BUT_PI3,BUT_PI3_IDX_MASK,1);
+	pio_set_debounce_filter(BUT_PI3, BUT_PI3_IDX_MASK, 60);
+	
 }
+
