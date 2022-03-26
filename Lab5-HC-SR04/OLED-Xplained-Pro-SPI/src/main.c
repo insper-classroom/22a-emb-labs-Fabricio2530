@@ -21,16 +21,44 @@
 #define TRIG_PI_IDX_MASK	(1 << TRIG_PI_IDX)
 
 //Variaveis globais
-volatile char subida = 0;
-volatile char descida = 0;
 volatile double tempo = 0;
 double freq = (float) 1/(2*0.000058);
-
+volatile char aguardo = 0;
 volatile double echo_flag = 0;
+int contador_vect = 0;
 
-volatile double dist = 0;
-char str[300];
-
+double distancias[] = {0.0, 0.0, 0.0, 0.0};
+	
+void grafico_distancias(int dist) {
+	distancias[contador_vect] = dist;
+	
+	//BLOCO DE LIMPEZA
+	gfx_mono_generic_draw_filled_rect(76, 2, 48, 24, GFX_PIXEL_CLR);
+	
+	//BLOCO DE DESENHO
+	
+	if (contador_vect < 3) {
+		contador_vect += 1;
+	} else {
+		contador_vect = 0;
+	}
+	
+	for (int i = 0; i < 4; i++) {
+		
+		int altura = (distancias[i]*19)/400;
+		
+		if (i == 0) {
+			gfx_mono_draw_pixel(87, 19 - altura, GFX_PIXEL_SET); //v[0]
+		} else if ( i == 1) {
+			gfx_mono_draw_pixel(95, 19 - altura, GFX_PIXEL_SET); // v[1]
+		} else if (i == 2) {
+			gfx_mono_draw_pixel(100, 19 - altura,GFX_PIXEL_SET); //v[2]
+		} else {
+			gfx_mono_draw_pixel(110, 19 - altura, GFX_PIXEL_SET); // v[3]
+		}
+	}
+	
+}
 
 void echo_callback(void){
 	//if (!pio_get(ECHO_PI, PIO_INPUT, ECHO_PI_IDX_MASK)) {
@@ -38,22 +66,46 @@ void echo_callback(void){
 	if (!echo_flag) {
 		
 		RTT_init(freq, 0, 0);	
-		//pin_toggle(LED_PI2, LED_PI2_IDX_MASK);
-		//delay_ms(300);
-		//pin_toggle(LED_PI2, LED_PI2_IDX_MASK);
 		echo_flag = 1;
+		aguardo = 1;
 		
-	} 
-	
-	else {
+		// 42.5 é 1/2*TMAX
+		int TC_t = 42.5 + 0.2*(tempo);
+		TC_init(TC2, ID_TC6, 0, TC_t);
+		tc_start(TC2, 0);
+		
+	} else if (echo_flag && aguardo) {
+		
+		//reinicia a flag do echo
 		echo_flag = 0;
 		
 		tempo = rtt_read_timer_value(RTT);
-		
-		//	'apin_toggle(LED_PI3, LED_PI3_IDX_MASK);
-		//delay_ms(300);
-		//pin_toggle(LED_PI3, LED_PI3_IDX_MASK);
+		aguardo = 0;
+		tc_stop(TC2, 0);
 	}
+}
+
+void TC6_Handler(void) {
+	/**
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+	* Isso é realizado pela leitura do status do periférico
+	**/
+	volatile uint32_t status = tc_get_status(TC2, 0);
+
+	/** Muda o estado do LED (pisca) **/
+	
+	if (aguardo) {
+		
+		tempo = 0;
+		//Se ultrapassa o tempo, reinicia o tempo, a flag de aguardo e do echo
+		aguardo = 0;
+		echo_flag = 0;
+		
+		tc_stop(TC2, 0);
+		gfx_mono_draw_string("Erro!", 0,10, &sysfont);
+	}
+	
+	
 }
 
 void init(void) {
@@ -95,11 +147,12 @@ int main (void)
 
   // Init OLED
 	gfx_mono_ssd1306_init();
-	gfx_mono_draw_string("Aguardando", 0,16, &sysfont);
-  /* Insert application code here, after the board has been initialized. */
+	gfx_mono_draw_string("Wait!", 0,10, &sysfont);
+	gfx_mono_generic_draw_rect(75, 1, 50, 26, GFX_PIXEL_SET);
+	
 	while(1) {
 			
-			if (!pio_get(BUT_PI1,PIO_INPUT, BUT_PI1_IDX_MASK)) {
+			if (flag_but1) {
 					
 					pio_set(TRIG_PI,TRIG_PI_IDX_MASK);
 					delay_us(10);
@@ -108,20 +161,21 @@ int main (void)
 					pin_toggle(LED_PI1, LED_PI1_IDX_MASK);
 					delay_ms(300);
 					pin_toggle(LED_PI1, LED_PI1_IDX_MASK);
+					flag_but1  = 0;
+					
 				}
 			
 			
 			if (tempo != 0) {
 				
+				char str[300];
 				double  tempo_real= (float) tempo/freq;
 				double distancia_cm = (340*tempo_real*100.0)/2.0;
-				
-				sprintf(str, "%lf", distancia_cm);
-				gfx_mono_draw_string(str, 0,16, &sysfont);
-				
-				
-				
+				sprintf(str, "%.1f  ", distancia_cm);
+				gfx_mono_draw_string(str, 0,10, &sysfont);	
+				grafico_distancias(distancia_cm);
 			}
 			
+			pmc_sleep(SAM_PM_SMODE_SLEEP_WFI);
 	}
 }
