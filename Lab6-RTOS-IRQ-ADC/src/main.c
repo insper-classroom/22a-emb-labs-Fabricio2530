@@ -63,6 +63,7 @@ extern void xPortSysTickHandler(void);
 
 /** Queue for msg log send data */
 QueueHandle_t xQueueADC;
+QueueHandle_t xQueuePROC;
 
 typedef struct {
   uint value;
@@ -127,7 +128,7 @@ static void AFEC_pot_Callback(void) {
   adcData adc;
   adc.value = afec_channel_get_value(AFEC_POT, AFEC_POT_CHANNEL);
   BaseType_t xHigherPriorityTaskWoken = pdTRUE;
-  xQueueSendFromISR(xQueueADC, &adc, &xHigherPriorityTaskWoken);
+  xQueueSendFromISR(xQueuePROC, &adc, &xHigherPriorityTaskWoken);
 }
 
 /************************************************************************/
@@ -145,18 +146,26 @@ static void task_proc(void *pvParameters) {
   adcData adc;
 
   while (1) {
-    if (xQueueReceive(xQueueADC, &(adc), 1000)) {
+    if (xQueueReceive(xQueuePROC, &(adc), 1000)) {
       int media = calcula_media_movel(adc.value);
-	  printf("ADC: %d \n", media);
+	   xQueueSend(xQueueADC, (void *)&media, 10);
     } 
 	
   }
 	
 }
 
-//static void task_adc(void *pvParameters) {
-//
-//}
+static void task_adc(void *pvParameters) {
+	
+	uint32_t msg = 0;
+	for (;;) {
+    /* verifica se chegou algum dado na queue, e espera por 0 ticks */
+    if (xQueueReceive(xQueueADC, &msg, (TickType_t) 0)) {
+      printf("ADC: %d \n", msg);
+    }
+  
+  }
+}
 
 /************************************************************************/
 /* funcoes                                                              */
@@ -259,11 +268,15 @@ int main(void) {
   xQueueADC = xQueueCreate(100, sizeof(adcData));
   if (xQueueADC == NULL)
     printf("falha em criar a queue xQueueADC \n"); 
+	
+  xQueuePROC = xQueueCreate(100, sizeof(adcData));
+  if (xQueuePROC == NULL)
+	printf("falha em criar a queue xQueueADC \n");
 
-  //if (xTaskCreate(task_adc, "ADC", TASK_ADC_STACK_SIZE, NULL,
-  //                TASK_ADC_STACK_PRIORITY, NULL) != pdPASS) {
-  //   printf("Failed to create test ADC task\r\n");
-  //}
+  if (xTaskCreate(task_adc, "ADC", TASK_ADC_STACK_SIZE, NULL,
+                  TASK_ADC_STACK_PRIORITY, NULL) != pdPASS) {
+     printf("Failed to create test ADC task\r\n");
+  }
   
   if (xTaskCreate(task_proc, "PROC", TASK_PROC_STACK_SIZE, NULL,
   TASK_PROC_STACK_PRIORITY, NULL) != pdPASS) {
