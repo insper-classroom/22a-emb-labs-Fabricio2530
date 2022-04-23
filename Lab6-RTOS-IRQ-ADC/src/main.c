@@ -10,7 +10,12 @@
 
 #define AFEC_POT AFEC0
 #define AFEC_POT_ID ID_AFEC0
-#define AFEC_POT_CHANNEL 0 // Canal do pino PC31
+#define AFEC_POT_CHANNEL 0 // Canal do pino PD 30
+
+#define AFEC1_POT AFEC1
+#define AFEC1_POT_ID ID_AFEC1
+#define AFEC1_POT_CHANNEL 1 // Canal do pino PC 13
+
 
 /*************************************************************************/
 /* VARIAVEIS                                                             */
@@ -66,7 +71,8 @@ QueueHandle_t xQueueADC;
 QueueHandle_t xQueuePROC;
 
 typedef struct {
-  uint value;
+  uint x;
+  uint y;
 } adcData;
 
 /************************************************************************/
@@ -122,13 +128,23 @@ void TC1_Handler(void) {
   /* Selecina canal e inicializa conversão */
   afec_channel_enable(AFEC_POT, AFEC_POT_CHANNEL);
   afec_start_software_conversion(AFEC_POT);
+  
+  afec_channel_enable(AFEC1_POT, AFEC1_POT_CHANNEL);
+  afec_start_software_conversion(AFEC1_POT);
 }
 
 static void AFEC_pot_Callback(void) {
   adcData adc;
-  adc.value = afec_channel_get_value(AFEC_POT, AFEC_POT_CHANNEL);
+  adc.x = afec_channel_get_value(AFEC_POT, AFEC_POT_CHANNEL);
   BaseType_t xHigherPriorityTaskWoken = pdTRUE;
   xQueueSendFromISR(xQueuePROC, &adc, &xHigherPriorityTaskWoken);
+}
+
+static void AFEC1_pot_Callback(void){
+	adcData adc;
+	adc.y = afec_channel_get_value(AFEC1_POT, AFEC1_POT_CHANNEL);	
+	BaseType_t xHigherPriorityTaskWoken = pdTRUE;
+	xQueueSendFromISR(xQueuePROC, &adc, &xHigherPriorityTaskWoken);
 }
 
 /************************************************************************/
@@ -138,7 +154,9 @@ static void AFEC_pot_Callback(void) {
 static void task_proc(void *pvParameters) {
 
   // configura ADC e TC para controlar a leitura
+  
   config_AFEC_pot(AFEC_POT, AFEC_POT_ID, AFEC_POT_CHANNEL, AFEC_pot_Callback);
+  config_AFEC_pot(AFEC1_POT, AFEC1_POT_ID, AFEC1_POT_CHANNEL, AFEC1_pot_Callback);
   TC_init(TC0, ID_TC1, 1, 10);
   tc_start(TC0, 1);
 
@@ -147,8 +165,7 @@ static void task_proc(void *pvParameters) {
 
   while (1) {
     if (xQueueReceive(xQueuePROC, &(adc), 1000)) {
-      int media = calcula_media_movel(adc.value);
-	   xQueueSend(xQueueADC, (void *)&media, 10);
+	  xQueueSend(xQueueADC, (void *)&adc, 10);
     } 
 	
   }
@@ -157,11 +174,11 @@ static void task_proc(void *pvParameters) {
 
 static void task_adc(void *pvParameters) {
 	
-	uint32_t msg = 0;
+	adcData adc;
 	for (;;) {
     /* verifica se chegou algum dado na queue, e espera por 0 ticks */
-    if (xQueueReceive(xQueueADC, &msg, (TickType_t) 0)) {
-      printf("ADC: %d \n", msg);
+    if (xQueueReceive(xQueueADC, &adc, (TickType_t) 0)) {
+      printf("ADC em x: %d e ADC em y: %d \n", adc.x, adc.y);
     }
   
   }
