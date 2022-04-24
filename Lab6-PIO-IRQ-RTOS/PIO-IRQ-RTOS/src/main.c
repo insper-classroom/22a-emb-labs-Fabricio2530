@@ -11,10 +11,10 @@
 #define BUT_PIO_PIN_MASK (1 << BUT_PIO_PIN)
 
 // Configuracoes do BOTAO 1 - OLED
-#define BUT_PIO1			  PIOD
-#define BUT_PIO1_ID        ID_PIOD
-#define BUT_PIO1_IDX	      28
-#define BUT_PIO1_IDX_MASK (1u << BUT_PIO1_IDX)
+#define TRIGGER_PIO			  PIOA
+#define TRIGGER_PIO_ID        ID_PIOA
+#define TRIGGER_PIO_IDX	      2
+#define TRIGGER_PIO_IDX_MASK (1u << TRIGGER_PIO_IDX)
 
 #define LED_PIO PIOC
 #define LED_PIO_ID ID_PIOC
@@ -112,9 +112,9 @@ extern void vApplicationMallocFailedHook(void) {
 /************************************************************************/
 
 void but_callback(void) {
+	printf("Entrou no botão da plaquinha\n");
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(xSemaphoreBut, &xHigherPriorityTaskWoken);
-	
 	int delay = 100;
 	xQueueSendFromISR(xQueueBut, (void *)&delay,  &xHigherPriorityTaskWoken);
 	
@@ -123,9 +123,10 @@ void but_callback(void) {
 }
 
 void but1_oled_callback(void) {
-	printf("Entrou no callback oled but1");
+	printf("Entrou no callback Trigger\n");
 		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 		xSemaphoreGiveFromISR(xSemaphoreBut, &xHigherPriorityTaskWoken);
+	
 	int delay = -100;
 	xQueueSendFromISR(xQueueBut, (void *)&delay,  &xHigherPriorityTaskWoken);
 }
@@ -168,7 +169,7 @@ static void task_but(void *pvParameters) {
 	BUT1_OLED_init();
 
 	int32_t delayTicks = 0;
-	int delay = 1000;
+	int32_t delay = 1000;
 
 	for (;;) {
 		/* aguarda por tempo inderteminado até a liberacao do semaforo */
@@ -176,7 +177,8 @@ static void task_but(void *pvParameters) {
 
 			delay = delay + delayTicks;
 			/* envia nova frequencia para a task_led */
-			xQueueSend(xQueueLedFreq, (void *)&delayTicks, 10);
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+			xQueueSendFromISR(xQueueLedFreq, (void *)&delay,  &xHigherPriorityTaskWoken);
 		}
 		
 	
@@ -238,18 +240,18 @@ static void BUT_init(void) {
 
 static void BUT1_OLED_init(void) {
 	/* conf botão como entrada */
-	pio_configure(BUT_PIO1, PIO_INPUT, BUT_PIO1_IDX_MASK,
+	pio_configure(TRIGGER_PIO, PIO_INPUT, TRIGGER_PIO_IDX_MASK,
 	PIO_PULLUP | PIO_DEBOUNCE);
-	pio_set_debounce_filter(BUT_PIO1, BUT_PIO1_IDX_MASK, 60);
-	pio_enable_interrupt(BUT_PIO1, BUT_PIO1_IDX_MASK);
-	pio_handler_set(BUT_PIO1, BUT_PIO1_ID, BUT_PIO1_IDX_MASK, PIO_IT_FALL_EDGE,
+	pio_set_debounce_filter(TRIGGER_PIO, TRIGGER_PIO_IDX_MASK, 60);
+	pio_enable_interrupt(TRIGGER_PIO, TRIGGER_PIO_IDX_MASK);
+	pio_handler_set(TRIGGER_PIO, TRIGGER_PIO_ID, TRIGGER_PIO_IDX_MASK, PIO_IT_FALL_EDGE,
 	but1_oled_callback);
 
-	pio_get_interrupt_status(BUT_PIO1);
+	pio_get_interrupt_status(TRIGGER_PIO);
 	
 	/* configura prioridade */
-	NVIC_EnableIRQ(BUT_PIO1_ID);
-	NVIC_SetPriority(BUT_PIO1_ID, 4);
+	NVIC_EnableIRQ(TRIGGER_PIO_ID);
+	NVIC_SetPriority(TRIGGER_PIO_ID, 4);
 
 }
 
