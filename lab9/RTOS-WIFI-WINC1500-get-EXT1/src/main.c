@@ -11,12 +11,18 @@
 #define LED_PIO_IDX       8                    // ID do LED no PIO
 #define LED_PIO_IDX_MASK  (1 << LED_PIO_IDX)   // Mascara para CONTROLARMOS o LED
 
+// Configuracoes do botao
+#define BUT_PIO			  PIOA
+#define BUT_PIO_ID        ID_PIOA
+#define BUT_PIO_IDX	      11
+#define BUT_PIO_IDX_MASK (1u << BUT_PIO_IDX) // esse já está pronto.
+
 /************************************************************************/
 /* WIFI                                                                 */
 /************************************************************************/
 
-#define MAIN_WLAN_SSID    "LIVE TIM_ZGLL" /**< Destination SSID */
-#define MAIN_WLAN_PSK     "19AF3E5E57" /**< Password for Destination SSID */
+#define MAIN_WLAN_SSID    "Embarcados" /**< Destination SSID */
+#define MAIN_WLAN_PSK     "MarcoMonstrao" /**< Password for Destination SSID */
 
 #define MAIN_SERVER_PORT  5000
 #define MAIN_SERVER_NAME  "192.168.50.82"
@@ -57,6 +63,8 @@ static char server_host_name[] = MAIN_SERVER_NAME;
 #define TASK_WIFI_PRIORITY        (1)
 #define TASK_PROCESS_STACK_SIZE   (4*4096/sizeof(portSTACK_TYPE))
 #define TASK_PROCESS_PRIORITY     (0)
+#define TASK_BUT_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_BUT_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 SemaphoreHandle_t xSemaphore;
 QueueHandle_t xQueueMsg;
@@ -69,6 +77,10 @@ extern void vApplicationMallocFailedHook(void);
 extern void xPortSysTickHandler(void);
 
 TaskHandle_t xHandleWifi = NULL;
+SemaphoreHandle_t xSemaphoreBut;
+
+int contentLength;
+char *POSTDATA = "LED=1";
 
 /************************************************************************/
 /* HOOKs                                                                */
@@ -91,6 +103,18 @@ extern void vApplicationMallocFailedHook(void){
 /************************************************************************/
 /* funcoes                                                              */
 /************************************************************************/
+void pin_toggle(Pio *pio, uint32_t mask) {
+	if(pio_get_output_data_status(pio, mask))
+	pio_clear(pio, mask);
+	else
+	pio_set(pio,mask);
+}
+
+void but_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(xSemaphoreBut, &xHigherPriorityTaskWoken);	
+}
+
 void init(void) {
 	//Initialize the board clock
 	sysclk_init();
@@ -101,11 +125,31 @@ void init(void) {
 	// para que possamos controlar o LED.
 	pmc_enable_periph_clk(LED_PIO_ID);
 	//Inicializa PC8 como saída
-	pio_set_output(LED_PIO, LED_PIO_IDX_MASK, 0, 0, 0);
+	pio_set_output(LED_PIO, LED_PIO_IDX_MASK, 1, 0, 0);
+	
+	// Inicializa PIO do botao
+	pmc_enable_periph_clk(BUT_PIO_ID);
+	// configura pino ligado ao botão como entrada com um pull-up.
+	pio_set_input(BUT_PIO,BUT_PIO_IDX_MASK,PIO_DEFAULT);
+	pio_pull_up(BUT_PIO,BUT_PIO_IDX_MASK,1);
+	pio_set_debounce_filter(BUT_PIO_ID, BUT_PIO_IDX_MASK, 60);
+	
+	pio_handler_set(BUT_PIO,
+	BUT_PIO_ID,
+	BUT_PIO_IDX_MASK,
+	PIO_IT_RISE_EDGE,
+	but_callback);
+	
+	pio_enable_interrupt(BUT_PIO, BUT_PIO_IDX_MASK);
+	pio_get_interrupt_status(BUT_PIO);
+	
+	NVIC_EnableIRQ(BUT_PIO_ID);
+	NVIC_SetPriority(BUT_PIO_ID, 4); // Prioridade 4
 }
 
 void format_request(char *vect, char path) {
 	sprintf(vect, "GET %s HTTP/1.1\r\n Accept: */*\r\n\r\n", path);
+	
 }
 /************************************************************************/
 /* callbacks                                                            */
@@ -249,7 +293,8 @@ static void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 /************************************************************************/
 
 static void task_process(void *pvParameters) {
-
+	
+	int flag_post = 0;
   printf("task process created \n");
   vTaskDelay(1000);
 
@@ -259,6 +304,7 @@ static void task_process(void *pvParameters) {
   enum states {
     WAIT = 0,
     GET,
+	POST,
     ACK,
     MSG,
     TIMEOUT,
@@ -270,27 +316,49 @@ static void task_process(void *pvParameters) {
   while(1){
 
     switch(state){
+		
       case WAIT:
       // aguarda task_wifi conectar no wifi e socket estar pronto
       printf("STATE: WAIT \n");
       while(gbTcpConnection == false && tcp_client_socket >= 0){
         vTaskDelay(10);
       }
+	  
+	  if ((xSemaphoreTake(xSemaphoreBut, 10 / portTICK_PERIOD_MS))) {
+		state = POST;
+		flag_post = 1;
+	  }
+		
       state = GET;
       break;
 
       case GET:
       printf("STATE: GET \n");
-      sprintf((char *)g_sendBuffer, MAIN_PREFIX_BUFFER);
+	  format_request((char *)g_sendBuffer, "/status");
+	  sprintf((char *)g_sendBuffer, MAIN_PREFIX_BUFFER);
+	  
       send(tcp_client_socket, g_sendBuffer, strlen((char *)g_sendBuffer), 0);
       state = ACK;
       break;
+	  
+	  case POST:
+	  printf("STATE: POST \n");
+	  contentLength = strlen(POSTDATA);
+	  sprintf((char *)g_sendBuffer, "POST /status HTTP/1.0\nContent-Type: application/x-www-form-urlencoded\nContent-Length: %d\n\n%s",
+	  contentLength, POSTDATA);
+	  send(tcp_client_socket, g_sendBuffer, strlen((char *)g_sendBuffer), 0);
+	  state = ACK;
+	  break;
 
       case ACK:
       printf("STATE: ACK \n");
       memset(g_receivedBuffer, 0, MAIN_WIFI_M2M_BUFFER_SIZE);
       recv(tcp_client_socket, &g_receivedBuffer[0], MAIN_WIFI_M2M_BUFFER_SIZE, 0);
-
+	  if (flag_post) {
+		flag_post = 0;
+		state = DONE;
+		break; 
+	  }
       if(xQueueReceive(xQueueMsg, &p_recvMsg, 5000) == pdTRUE){
         printf(STRING_LINE);
         printf(p_recvMsg->pu8Buffer);
@@ -427,6 +495,10 @@ int main(void)
 
   xTaskCreate(task_wifi, "Wifi", TASK_WIFI_STACK_SIZE, NULL, TASK_WIFI_PRIORITY, &xHandleWifi);
   xTaskCreate(task_process, "process", TASK_PROCESS_STACK_SIZE, NULL, TASK_PROCESS_PRIORITY,  NULL );
+  
+  xSemaphoreBut = xSemaphoreCreateBinary();
+  if (xSemaphoreBut == NULL)
+  printf("falha em criar o semaforo but\n");
 
   vTaskStartScheduler();
 
