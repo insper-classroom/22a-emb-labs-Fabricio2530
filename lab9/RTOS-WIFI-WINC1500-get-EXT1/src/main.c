@@ -147,7 +147,7 @@ void init(void) {
 	NVIC_SetPriority(BUT_PIO_ID, 4); // Prioridade 4
 }
 
-void format_request(char *vect, char path) {
+void format_request(char *vect, char *path) {
 	sprintf(vect, "GET %s HTTP/1.1\r\n Accept: */*\r\n\r\n", path);
 	
 }
